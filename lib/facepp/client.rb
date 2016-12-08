@@ -48,15 +48,15 @@ class FacePP
       @boundary = [SecureRandom.random_bytes(15)].pack('m*').chop!
     end
 
-    def add_field name, value
+    def add_field(name, value)
       @fields << [name, value]
     end
 
-    def add_file name, filepath
+    def add_file(name, filepath)
       @files << [name, filepath]
     end
 
-    def self.guess_mime filename
+    def self.guess_mime(filename)
       res = MIME::Types.type_for(filename)
       res.empty? ? 'application/octet-stream' : res[0]
     end
@@ -71,7 +71,7 @@ class FacePP
 
     def inspect
       res = StringIO.new
-      append_boundary = lambda { res.write "--#{@boundary}\r\n" }
+      append_boundary = -> { res.write "--#{@boundary}\r\n" }
       @fields.each do |field|
         append_boundary[]
         res.write "Content-Disposition: form-data; name=\"#{field[0]}\"\r\n\r\n#{field[1]}\r\n"
@@ -119,12 +119,12 @@ class FacePP
     '/recognition/train',
     '/recognition/verify',
     '/recognition/recognize',
-    '/recognition/search',
-  ]
+    '/recognition/search'
+  ].freeze
 
   def initialize(key, secret, options={})
     decode = options.fetch :decode, true
-    make_hash = lambda { Hash.new {|h,k| h[k] = make_hash.call make_hash } }
+    make_hash = -> { Hash.new { |h, k| h[k] = make_hash.call make_hash } }
 
     APIS.each do |api|
       m = self
@@ -141,22 +141,22 @@ class FacePP
 
       m.define_singleton_method breadcrumbs[-1] do |*args|
         form = MultiPart.new
-        fields = {'api_key' => key, 'api_secret' => secret}
-        (args[0] || {}).each do |k,v|
-          if k.to_s == 'img'  # via POST
+        fields = { 'api_key' => key, 'api_secret' => secret }
+        (args[0] || {}).each do |k, v|
+          if k.to_s == 'img' # via POST
             form.add_file k, v
           else
             fields[k] = v.is_a?(Enumerable) ? v.to_a.join(',') : v
           end
         end
 
-        req = Net::HTTP::Post.new "#{api}?#{URI::encode_www_form(fields)}"
+        req = Net::HTTP::Post.new "#{api}?#{URI.encode_www_form(fields)}"
         if form.has_file?
           req.set_content_type form.content_type
           req.body = form.inspect
           req['Content-Length'] = req.body.size
         end
-        res = Net::HTTP.new('api.faceplusplus.com').request(req).body
+        res = Net::HTTP.new('apius.faceplusplus.com').request(req).body
         decode ? JSON.load(res) : res
       end
     end
